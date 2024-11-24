@@ -41,7 +41,9 @@ RUN set -xe ;\
     git clone https://github.com/apache/age.git; \
     cd /tmp/age; \
     PG_CONFIG=/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config make; \
-    PG_CONFIG=/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config make install
+    PG_CONFIG=/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config make install; \
+    rm -fr /tmp/* ; \
+    rm -rf /var/lib/apt/lists/*;
 
 # Install default additional extensions
 RUN set -xe; \
