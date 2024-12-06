@@ -9,6 +9,7 @@ by adding the following software:
 - Postgres Failover Slots
 - pgvector
 - Apache Age
+- Aiven extras
 
 Barman Cloud is distributed by EnterpriseDB under the
 [GNU GPL 3 License](https://github.com/EnterpriseDB/barman/blob/master/LICENSE).

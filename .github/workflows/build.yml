@@ -181,8 +181,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.REPO_GHA_PAT }}
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -196,28 +194,10 @@ jobs:
           yq eval-all '. as $item ireduce ({}; . *+ $item )' clusterimagecatalog/*.yaml > ApacheAge/ClusterImageCatalog.yaml
           cat ApacheAge/ClusterImageCatalog.yaml
 
-      - name: Temporarily disable "include administrators" branch protection
-        if: ${{ always() && github.ref == 'refs/heads/main' }}
-        id: disable_include_admins
-        uses: benjefferies/branch-protection-bot@v1.1.2
-        with:
-          access_token: ${{ secrets.REPO_GHA_PAT }}
-          branch: main
-          enforce_admins: false
-
-      - name: Push ClusterImageCatalog updates
-        uses: EndBug/add-and-commit@v9
-        if: ${{ github.ref == 'refs/heads/main' }}
-        with:
-          author_name: CloudNativePG Automated Updates
-          author_email: noreply@cnpg.com
-          message: "Automatic ClusterImageCatalog update"
-          add: "ApacheAge/ClusterImageCatalog.yaml"
-
-      - name: Enable "include administrators" branch protection
-        uses: benjefferies/branch-protection-bot@v1.1.2
-        if: ${{ always() && github.ref == 'refs/heads/main' }}
-        with:
-          access_token: ${{ secrets.REPO_GHA_PAT }}
-          branch: main
-          enforce_admins: ${{ steps.disable_include_admins.outputs.initial_status }}
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add ApacheAge/ClusterImageCatalog.yaml
+          git commit -m "Automatic ClusterImageCatalog update"
+          git push
