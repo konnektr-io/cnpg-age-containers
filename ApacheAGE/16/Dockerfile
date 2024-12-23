@@ -20,7 +20,7 @@ FROM postgres:16.6-bookworm
 LABEL name="Apache AGE Container Images" \
     vendor="Konnektr.io" \
     version="${PG_VERSION}" \
-    release="2" \
+    release="3" \
     summary="Apache AGE Container images." \
     description="This Docker image contains PostgreSQL, Apache Age and Barman Cloud based on Postgres 16.6-bookworm."
 
