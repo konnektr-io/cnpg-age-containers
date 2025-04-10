@@ -191,13 +191,13 @@ jobs:
 
       - name: Update ClusterImageCatalog
         run: |
-          yq eval-all '. as $item ireduce ({}; . *+ $item )' clusterimagecatalog/*.yaml > ApacheAge/ClusterImageCatalog.yaml
-          cat ApacheAge/ClusterImageCatalog.yaml
+          yq eval-all '. as $item ireduce ({}; . *+ $item )' clusterimagecatalog/*.yaml > ApacheAGE/ClusterImageCatalog.yaml
+          cat ApacheAGE/ClusterImageCatalog.yaml
 
       - name: Commit and push changes
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
-          git add ApacheAge/ClusterImageCatalog.yaml
+          git add ApacheAGE/ClusterImageCatalog.yaml
           git commit -m "Automatic ClusterImageCatalog update"
           git push
