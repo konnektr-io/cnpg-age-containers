@@ -14,17 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-FROM postgres:16.6-bookworm
+FROM postgres:16.8-bookworm
 
 # Do not split the description, otherwise we will see a blank space in the labels
 LABEL name="Apache AGE Container Images" \
     vendor="Konnektr.io" \
     version="${PG_VERSION}" \
-    release="3" \
+    release="5" \
     summary="Apache AGE Container images." \
-    description="This Docker image contains PostgreSQL, Apache Age and Barman Cloud based on Postgres 16.6-bookworm."
+    description="This Docker image contains PostgreSQL, Apache Age and Barman Cloud based on Postgres 16.8-bookworm and Apache AGE 1.5.0."
 
-LABEL org.opencontainers.image.description="This Docker image contains PostgreSQL, Apache Age and Barman Cloud based on Postgres 16.6-bookworm."
+LABEL org.opencontainers.image.description="This Docker image contains PostgreSQL, Apache Age and Barman Cloud based on Postgres 16.8-bookworm."
 
 COPY requirements.txt /
 
@@ -36,9 +36,9 @@ RUN set -xe ;\
     sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list' ;\
     wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - ;\
     apt-get update ;\
-    apt-get install -y "postgresql-server-dev-${PG_MAJOR}" build-essential git libreadline-dev zlib1g-dev flex bison; \
+    apt-get install -y "postgresql-server-dev-${PG_MAJOR}" build-essential git libreadline-dev zlib1g-dev flex bison flex locales; \
     cd /tmp; \
-    git clone https://github.com/apache/age.git; \
+    git clone --branch release/PG16/1.5.0 https://github.com/apache/age.git; \
     cd /tmp/age; \
     PG_CONFIG=/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config make; \
     PG_CONFIG=/usr/lib/postgresql/${PG_MAJOR}/bin/pg_config make install; \
