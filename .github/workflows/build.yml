@@ -1,203 +1,73 @@
-name: Continuous Delivery
+name: Build and Publish CNPG + Apache AGE images
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - ApacheAGE/**
+    branches: [ main ]
   workflow_dispatch:
 
-env:
-  IMAGE_STAGING: "ghcr.io/${{ github.repository_owner }}/age-testing"
-  IMAGE_RELEASE: "ghcr.io/${{ github.repository_owner }}/age"
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  generate-jobs:
-    name: Generate Jobs
-    runs-on: ubuntu-22.04
-    outputs:
-      strategy: ${{ steps.generate-jobs.outputs.strategy }}
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Generate Jobs
-        id: generate-jobs
-        shell: bash
-        run: |
-          bash .github/generate-strategy.sh
-
   build:
-    needs: generate-jobs
-    strategy: ${{ fromJson(needs.generate-jobs.outputs.strategy) }}
-    name: ${{ matrix.name }}
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: read
-      packages: write
-      security-events: write
+    name: Build matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pg_major: '16'
+            age_version: '1.5.0'
+          - pg_major: '16'
+            age_version: '1.6.0'
+          - pg_major: '17'
+            age_version: '1.6.0'
+    env:
+      CNPG_VARIANT: standard-trixie
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Set up build metadata
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          platforms: ${{ matrix.platforms }}
+          images: |
+            ghcr.io/${{ github.repository_owner }}/age
+          tags: |
+            type=raw,value=${{ matrix.pg_major }}-${{ matrix.age_version }}-${{ env.CNPG_VARIANT }}
+            # Short tag without variant (still keep variant in main tag for clarity)
+            type=raw,value=${{ matrix.pg_major }}-${{ matrix.age_version }},enable=${{ env.CNPG_VARIANT == 'standard-trixie' }}
+          labels: |
+            org.opencontainers.image.title=Apache AGE for CNPG
+            org.opencontainers.image.description=PostgreSQL ${{ matrix.pg_major }} with Apache AGE ${{ matrix.age_version }} on CloudNativePG base image (variant ${{ env.CNPG_VARIANT }})
+            org.opencontainers.image.vendor=${{ github.repository_owner }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=Apache-2.0
 
-      - name: Docker meta
-        env:
-          TAGS: ${{ toJson(matrix.tags) }}
-        run: |
-          RESULT=""
-          for tag in $(jq -r '.[]' <<< "${TAGS}")
-          do
-            RESULT="${RESULT},${IMAGE_STAGING}:${tag}"
-            # If we are running the pipeline in the main branch images are pushed in both -testing and PROD repo
-            if [ "${GITHUB_REF#refs/heads/}" == main ]
-            then
-              RESULT="${RESULT},${IMAGE_RELEASE}:${tag}"
-            fi
-          done
-          echo "TAGS=${RESULT%,}" >> $GITHUB_ENV
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to the GitHub Container registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # When publishing new images from main, we should not overwrite an existing
-      # tag in order to guarantee the tag's SHA digest consistency.
-      - name: Verify primary tag is not overwritten
-        run: |
-          echo "MISSING_TAG=false" >> $GITHUB_ENV
-          # if we are not on the main branch, always push
-          if [ "${GITHUB_REF#refs/heads/}" != main ]; then
-              echo "MISSING_TAG=true" >> $GITHUB_ENV
-              exit 0
-          fi
-          IMAGE="${IMAGE_RELEASE}:${{ matrix.fullTag }}"
-          # If the primary tag already exists, skip the building phase
-          if skopeo inspect docker://${IMAGE} >/dev/null 2>/dev/null; then
-            echo "Image ${IMAGE} already exists"
-            # We still need to grab the digest to build the imageCatalog
-            echo "OLD_DIGEST=$(skopeo inspect docker://${IMAGE} --format '{{ .Digest }}')" >> $GITHUB_ENV
-          else
-            echo "MISSING_TAG=true" >> $GITHUB_ENV
-          fi
-
-      - name: Build and load
-        uses: docker/build-push-action@v6
-        if: ${{ env.MISSING_TAG == 'true' }}
-        with:
-          context: ${{ matrix.dir }}
-          file: ${{ matrix.file }}
-          push: false
-          load: true
-          tags: ${{ env.TAGS }}
-
-      # - name: Dockle scan
-      #   uses: erzz/dockle-action@v1
-      #   if: ${{ env.MISSING_TAG == 'true' }}
-      #   with:
-      #     image: "${{ env.IMAGE_STAGING }}:${{ matrix.tags[0] }}"
-      #     exit-code: "1"
-      #     failure-threshold: WARN
-      #     accept-keywords: key
-      #     accept-filenames: usr/share/cmake/Templates/Windows/Windows_TemporaryKey.pfx,etc/trusted-key.key,usr/share/doc/perl-IO-Socket-SSL/certs/server_enc.p12,usr/share/doc/perl-IO-Socket-SSL/certs/server.p12,usr/local/lib/python3.9/dist-packages/azure/core/settings.py,usr/local/lib/python3.8/site-packages/azure/core/settings.py,usr/share/postgresql-common/pgdg/apt.postgresql.org.asc,usr/local/lib/python3.7/dist-packages/azure/core/settings.py,etc/ssl/private/ssl-cert-snakeoil.key
-
-      - name: Run Snyk to check Docker image for vulnerabilities
-        uses: snyk/actions/docker@master
-        if: ${{ env.MISSING_TAG == 'true' }}
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          image: "${{ env.IMAGE_STAGING }}:${{ matrix.tags[0] }}"
-          args: --severity-threshold=high --file=${{ matrix.file }}
-
-      - name: Upload result to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
-        if: ${{ env.MISSING_TAG == 'true' }}
-        continue-on-error: true
-        with:
-          sarif_file: snyk.sarif
-
       - name: Build and push
-        id: build
         uses: docker/build-push-action@v6
-        if: ${{ env.MISSING_TAG == 'true' }}
         with:
-          context: ${{ matrix.dir }}
-          file: ${{ matrix.file }}
-          platforms: ${{ matrix.platforms }}
+          context: .
           push: true
-          tags: ${{ env.TAGS }}
+          build-args: |
+            PG_MAJOR=${{ matrix.pg_major }}
+            AGE_VERSION=${{ matrix.age_version }}
+            CNPG_VARIANT=${{ env.CNPG_VARIANT }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false # disable attestation unless needed
 
-      - name: Create artifact
+      - name: Summary
         run: |
-          # Set a default image
-          BASE_IMAGE=${IMAGE_STAGING}
-          if [ "${GITHUB_REF#refs/heads/}" == main ]; then
-              BASE_IMAGE=${IMAGE_RELEASE}
-          fi
-
-          DIGEST="${{ steps.build.outputs.digest }}"
-          if [[ "${{ env.MISSING_TAG }}" == "false" ]]; then
-              DIGEST="${{ env.OLD_DIGEST }}"
-          fi
-
-          IMAGE=${BASE_IMAGE}:${{ matrix.fullTag }}@${DIGEST} \
-          MAJOR=${{ matrix.version }} \
-          yq --null-input '{
-            "apiVersion": "postgresql.cnpg.io/v1",
-            "kind": "ClusterImageCatalog",
-            "metadata": {"name":"age"},
-            "spec": {
-              "images": [
-                {
-                  "major": env(MAJOR),
-                  "image": env(IMAGE)
-                }
-              ]
-            }
-          }' > ${{ matrix.version }}.yaml
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.version }}-clusterimagecatalog
-          path: ${{ matrix.version }}.yaml
-
-  image-catalog:
-    name: Generate ClusterImageCatalog
-    runs-on: ubuntu-22.04
-    needs: build
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: "*-clusterimagecatalog"
-          path: clusterimagecatalog
-          merge-multiple: true
-
-      - name: Update ClusterImageCatalog
-        run: |
-          yq eval-all '. as $item ireduce ({}; . *+ $item )' clusterimagecatalog/*.yaml > ApacheAGE/ClusterImageCatalog.yaml
-          cat ApacheAGE/ClusterImageCatalog.yaml
-
-      - name: Commit and push changes
-        run: |
-          git config --global user.name 'github-actions'
-          git config --global user.email 'github-actions@github.com'
-          git add ApacheAGE/ClusterImageCatalog.yaml
-          git commit -m "Automatic ClusterImageCatalog update"
-          git push
+          echo "Published image tags:"
+          echo "${{ steps.meta.outputs.tags }}"

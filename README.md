@@ -7,124 +7,129 @@ by adding the following software:
 - Barman Cloud
 - PGAudit
 - Postgres Failover Slots
-- pgvector
-- Apache Age
-- Aiven extras
+# Apache AGE images for CloudNativePG
 
-Barman Cloud is distributed by EnterpriseDB under the
-[GNU GPL 3 License](https://github.com/EnterpriseDB/barman/blob/master/LICENSE).
+Lightweight container images that add the **Apache AGE** graph extension to the
+CloudNativePG base PostgreSQL images. Use them to run property graph workloads
+side-by-side with standard relational SQL in Kubernetes clusters managed by
+[CloudNativePG](https://cloudnative-pg.io/).
 
-PGAudit is distributed under the
-[PostgreSQL License](https://github.com/pgaudit/pgaudit/blob/master/LICENSE).
+## Contents
 
-Postgres Failover Slots is distributed by EnterpriseDB under the
-[PostgreSQL License](https://github.com/EnterpriseDB/pg_failover_slots/blob/master/LICENSE).
+Each image includes:
 
-pgRouting is distributed under the
-[GNU GPL 2 License](https://github.com/pgRouting/pgrouting/blob/main/LICENSE),
-with the some Boost extensions being available under
-[Boost Software License](https://docs.pgrouting.org/latest/en/pgRouting-introduction.html#licensing).
+* CloudNativePG upstream base image (variant: `standard-trixie`)
+* Compiled Apache AGE extension (version per tag)
+* pgvector (from upstream base, available for convenience)
 
-Licensing information of all the software included in the container images is
-in the `/usr/share/doc/*/copyright*` files.
+Nothing else is bundled intentionally—focus is on Apache AGE.
 
-## Where to get them
+## Image tags
 
-Images are available via the
-[GitHub Container Registry](https://github.com/konnektr-io/pg-age-containers/pkgs/container/pgage).
+Current build matrix (see workflow in `.github/workflows/build.yml`):
 
-## How to use them
+| PostgreSQL | AGE version(s)       | Variant         |
+|------------|----------------------|-----------------|
+| 16         | 1.5.0, 1.6.0         | standard-trixie |
+| 17         | 1.6.0                | standard-trixie |
 
-The following example shows how you can easily create a new PostgreSQL 17
-cluster with Apache Age installed. All you have to do is set the `imageName`
-accordingly. Please look at the registry for a list of available images
-and select the one you need.
+Tag format:
 
-Create a YAML manifest. For example, you can put the YAML below into a file
-named `pgage.yaml` (any name is fine). (Please refer to
-[CloudNativePG](https://cloudnative-pg.io/docs) for details on the API):
+```
+ghcr.io/<owner>/age:<pg_major>-<age_version>-<variant>
+```
+
+Examples:
+
+```
+ghcr.io/konnektr-io/age:16-1.5.0-standard-trixie
+ghcr.io/konnektr-io/age:16-1.6.0-standard-trixie
+ghcr.io/konnektr-io/age:17-1.6.0-standard-trixie
+```
+
+Short tags without the variant (e.g. `16-1.6.0`) may also exist for the default
+variant; prefer the fully qualified form to avoid ambiguity in the future if
+more variants are added.
+
+## Using with CloudNativePG
+
+Two common approaches:
+
+### 1. Directly reference the image
 
 ```yaml
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: pgage
+  name: age-demo
 spec:
-  imageCatalogRef:
-    apiGroup: postgresql.cnpg.io
-    kind: ClusterImageCatalog
-    name: age
-    major: 16
-
+  imageName: ghcr.io/konnektr-io/age:16-1.6.0-standard-trixie
   instances: 1
-
   bootstrap:
     initdb:
       postInitTemplateSQL:
-        - CREATE EXTENSION vector;
         - CREATE EXTENSION age;
         - GRANT SELECT ON ag_catalog.ag_graph TO app;
         - GRANT USAGE ON SCHEMA ag_catalog TO app;
-
+        - ALTER USER app REPLICATION;
+        - CREATE PUBLICATION age_pub FOR ALL TABLES;
+        - SELECT * FROM pg_create_logical_replication_slot('age_slot', 'pgoutput');
   storage:
     size: 2Gi
 ```
 
-Then run `kubectl apply -f pgage.yaml`.
+### 2. Via a ClusterImageCatalog (recommended for multiple clusters)
 
-When the cluster is up, run the following command to verify the version of
-Apache Age that is available in the system, by connecting to the `app` database:
+Create a `ClusterImageCatalog` (example—adjust to your org/versions):
 
-```console
-$ kubectl exec -ti cluster-example-1 -- psql app
-psql (17.0 (Debian 17.0-1.pgdg110+1))
-Type "help" for help.
-
-app=# SELECT * FROM pg_available_extensions WHERE name ~ '^postgis' ORDER BY 1;
-           name           | default_version | installed_version |                          comment
---------------------------+-----------------+-------------------+------------------------------------------------------------
- postgis                  | 3.4.0           |                   | PostGIS geometry and geography spatial types and functions
- postgis-3                | 3.4.0           |                   | PostGIS geometry and geography spatial types and functions
- postgis_raster           | 3.4.0           |                   | PostGIS raster types and functions
- postgis_raster-3         | 3.4.0           |                   | PostGIS raster types and functions
- postgis_sfcgal           | 3.4.0           |                   | PostGIS SFCGAL functions
- postgis_sfcgal-3         | 3.4.0           |                   | PostGIS SFCGAL functions
- postgis_tiger_geocoder   | 3.4.0           |                   | PostGIS tiger geocoder and reverse geocoder
- postgis_tiger_geocoder-3 | 3.4.0           |                   | PostGIS tiger geocoder and reverse geocoder
- postgis_topology         | 3.4.0           |                   | PostGIS topology spatial types and functions
- postgis_topology-3       | 3.4.0           |                   | PostGIS topology spatial types and functions
-(10 rows)
+```yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: ClusterImageCatalog
+metadata:
+  name: age
+spec:
+  images:
+    - major: 16
+      image: ghcr.io/konnektr-io/age:16-1.6.0-standard-trixie
+    - major: 17
+      image: ghcr.io/konnektr-io/age:17-1.6.0-standard-trixie
 ```
 
-The following command shows the extensions installed in the `app` database,
-thanks to the `postInitTemplateSQL` section in the bootstrap which runs the
-selected `CREATE EXTENSION` commands in the `template1` database, which is
-inherited by the application database - called `app` and created by default by
-CloudNativePG.
+Then in your `Cluster` use:
 
-```console
-app=# \dx
-                                        List of installed extensions
-          Name          | Version |   Schema   |                        Description
-------------------------+---------+------------+------------------------------------------------------------
- fuzzystrmatch          | 1.2     | public     | determine similarities and distance between strings
- plpgsql                | 1.0     | pg_catalog | PL/pgSQL procedural language
- postgis                | 3.4.0   | public     | PostGIS geometry and geography spatial types and functions
- postgis_tiger_geocoder | 3.4.0   | tiger      | PostGIS tiger geocoder and reverse geocoder
- postgis_topology       | 3.4.0   | topology   | PostGIS topology spatial types and functions
-(5 rows)
+```yaml
+imageCatalogRef:
+  apiGroup: postgresql.cnpg.io
+  kind: ClusterImageCatalog
+  name: age
+  major: 16
 ```
 
-You can now enjoy PostGIS!
+## Quick AGE usage
 
-## License and copyright
+After the cluster is ready:
 
-This software is available under [Apache License 2.0](LICENSE).
+```bash
+kubectl exec -ti age-demo-1 -- psql app -c "CREATE EXTENSION IF NOT EXISTS age; LOAD 'age'; SET search_path = ag_catalog,\"$user\",public; SELECT create_graph('g');"
+kubectl exec -ti age-demo-1 -- psql app -c "SELECT * FROM create_vlabel('g', 'Person');"
+kubectl exec -ti age-demo-1 -- psql app -c "SELECT * FROM cypher('g', $$ CREATE (n:Person {name:'Alice'}) RETURN n $$) AS (n agtype);"
+kubectl exec -ti age-demo-1 -- psql app -c "SELECT * FROM cypher('g', $$ MATCH (n:Person) RETURN n.name $$) AS (name text);"
+```
 
-Copyright The CloudNativePG Contributors.
+## Building locally
 
-## Trademarks
+You can reproduce the build for a given combination:
 
-*[Postgres, PostgreSQL and the Slonik Logo](https://www.postgresql.org/about/policies/trademarks/)
-are trademarks or registered trademarks of the PostgreSQL Community Association
-of Canada, and used with their permission.*
+```bash
+docker build \
+  --build-arg PG_MAJOR=16 \
+  --build-arg AGE_VERSION=1.6.0 \
+  --build-arg CNPG_VARIANT=standard-trixie \
+  -t age:16-1.6.0-standard-trixie .
+```
+
+## CI / Publishing
+
+Automated builds run via GitHub Actions on pushes to `main` or manual dispatch.
+See `.github/workflows/build.yml`. Each matrix entry is built and pushed with
+OCI image labels (title, description, source, revision, license).
