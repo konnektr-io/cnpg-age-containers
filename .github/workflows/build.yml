@@ -19,12 +19,23 @@ jobs:
         include:
           - pg_major: '16'
             age_version: '1.5.0'
+            cnpg_variant: standard-bookworm
+          - pg_major: '16'
+            age_version: '1.5.0'
+            cnpg_variant: standard-trixie
           - pg_major: '16'
             age_version: '1.6.0'
+            cnpg_variant: standard-bookworm
+          - pg_major: '16'
+            age_version: '1.6.0'
+            cnpg_variant: standard-trixie
           - pg_major: '17'
             age_version: '1.6.0'
-    env:
-      CNPG_VARIANT: standard-trixie
+            cnpg_variant: standard-bookworm
+          - pg_major: '17'
+            age_version: '1.6.0'
+            cnpg_variant: standard-trixie
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,12 +47,12 @@ jobs:
           images: |
             ghcr.io/${{ github.repository_owner }}/age
           tags: |
-            type=raw,value=${{ matrix.pg_major }}-${{ matrix.age_version }}-${{ env.CNPG_VARIANT }}
+            type=raw,value=${{ matrix.pg_major }}-${{ matrix.age_version }}-${{ matrix.cnpg_variant }}
             # Short tag without variant (still keep variant in main tag for clarity)
-            type=raw,value=${{ matrix.pg_major }}-${{ matrix.age_version }},enable=${{ env.CNPG_VARIANT == 'standard-trixie' }}
+            type=raw,value=${{ matrix.pg_major }}-${{ matrix.age_version }},enable=${{ matrix.cnpg_variant == 'standard-trixie' }}
           labels: |
             org.opencontainers.image.title=Apache AGE for CNPG
-            org.opencontainers.image.description=PostgreSQL ${{ matrix.pg_major }} with Apache AGE ${{ matrix.age_version }} on CloudNativePG base image (variant ${{ env.CNPG_VARIANT }})
+            org.opencontainers.image.description=PostgreSQL ${{ matrix.pg_major }} with Apache AGE ${{ matrix.age_version }} on CloudNativePG base image (variant ${{ matrix.cnpg_variant }})
             org.opencontainers.image.vendor=${{ github.repository_owner }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -62,7 +73,7 @@ jobs:
           build-args: |
             PG_MAJOR=${{ matrix.pg_major }}
             AGE_VERSION=${{ matrix.age_version }}
-            CNPG_VARIANT=${{ env.CNPG_VARIANT }}
+            CNPG_VARIANT=${{ matrix.cnpg_variant }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false # disable attestation unless needed
