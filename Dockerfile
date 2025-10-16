@@ -3,11 +3,13 @@ ARG AGE_VERSION=1.6.0
 ARG CNPG_VARIANT=standard-trixie
 
 # Build stage: Install necessary development tools for compilation and installation
-FROM postgres:${PG_MAJOR} AS build
+FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-${CNPG_VARIANT} AS build
 
 ARG PG_MAJOR
 ARG AGE_VERSION
 ARG CNPG_VARIANT
+
+USER root
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends --no-install-suggests \
