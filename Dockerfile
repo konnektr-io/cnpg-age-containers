@@ -1,7 +1,10 @@
+ARG PG_MAJOR=17
+ARG AGE_VERSION=1.6.0
+ARG CNPG_VARIANT=standard-trixie
+
 # Build stage: Install necessary development tools for compilation and installation
 FROM postgres:${PG_MAJOR} AS build
 
-# Re-declare args for clarity within this stage (helps linters / later overrides)
 ARG PG_MAJOR
 ARG AGE_VERSION
 ARG CNPG_VARIANT
@@ -25,7 +28,6 @@ RUN make && make install
 # Final stage: Create a final image by copying the files created in the build stage
 FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-${CNPG_VARIANT}
 
-# Re-declare args in final stage (optional but keeps clarity and allows later use if extended)
 ARG PG_MAJOR
 ARG AGE_VERSION
 ARG CNPG_VARIANT
