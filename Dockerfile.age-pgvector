@@ -26,11 +26,7 @@ RUN git clone --branch release/PG$PG_MAJOR/$AGE_VERSION https://github.com/apach
 WORKDIR /age
 RUN make && make install
 
-# --- Install pgvector ---
-WORKDIR /
-RUN git clone --branch v0.5.1 https://github.com/pgvector/pgvector.git
-WORKDIR /pgvector
-RUN make && make install
+
 
 # Final stage: Create a final image by copying the files created in the build stage
 FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-${CNPG_VARIANT}
@@ -54,10 +50,14 @@ COPY --from=build /usr/lib/postgresql/$PG_MAJOR/lib/age.so /usr/lib/postgresql/$
 COPY --from=build /usr/share/postgresql/$PG_MAJOR/extension/age--$AGE_VERSION.sql /usr/share/postgresql/$PG_MAJOR/extension/
 COPY --from=build /usr/share/postgresql/$PG_MAJOR/extension/age.control /usr/share/postgresql/$PG_MAJOR/extension/
 
-# Copy pgvector extension
-COPY --from=build /usr/lib/postgresql/$PG_MAJOR/lib/pgvector.so /usr/lib/postgresql/$PG_MAJOR/lib/
-COPY --from=build /usr/share/postgresql/$PG_MAJOR/extension/vector--*.sql /usr/share/postgresql/$PG_MAJOR/extension/
-COPY --from=build /usr/share/postgresql/$PG_MAJOR/extension/vector.control /usr/share/postgresql/$PG_MAJOR/extension/
+
+# Install pgvector from apt (adjust package name for PG_MAJOR)
+RUN set -xe; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+    "postgresql-$PG_MAJOR-pgvector" ; \
+    rm -fr /tmp/* ; \
+    rm -rf /var/lib/apt/lists/*;
 
 # Create the plugins directory and a symlink to allow non-superusers to load the Apache AGE library
 RUN mkdir -p /usr/lib/postgresql/$PG_MAJOR/lib/plugins && ln -s /usr/lib/postgresql/$PG_MAJOR/lib/age.so /usr/lib/postgresql/$PG_MAJOR/lib/plugins/age.so
