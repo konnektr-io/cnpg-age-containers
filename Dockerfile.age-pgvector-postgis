@@ -2,11 +2,13 @@
 # Dockerfile for Apache AGE + PostGIS + pgvector
 # Base: cloudnative-pg/postgis (already includes PostGIS)
 
+
 ARG PG_MAJOR=17
 ARG AGE_VERSION=1.6.0
+ARG CNPG_VARIANT=standard-trixie
 ARG CNPG_POSTGIS_VARIANT=3-standard-trixie
 
-FROM ghcr.io/cloudnative-pg/postgis:${PG_MAJOR}-${CNPG_POSTGIS_VARIANT}
+FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-${CNPG_VARIANT} AS build
 
 ARG PG_MAJOR
 ARG AGE_VERSION
