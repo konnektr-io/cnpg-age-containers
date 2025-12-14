@@ -27,8 +27,9 @@ RUN git clone --branch release/PG$PG_MAJOR/$AGE_VERSION https://github.com/apach
 WORKDIR /age
 RUN make && make install
 
-# Final stage: Use postgis as base, install pgvector via apt
-FROM ghcr.io/cloudnative-pg/postgis
+
+# Final stage: Use correct PostGIS image for the selected PG version
+FROM ghcr.io/cloudnative-pg/postgis:${PG_MAJOR}
 
 ARG PG_MAJOR
 ARG AGE_VERSION
