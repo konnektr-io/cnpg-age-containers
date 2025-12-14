@@ -40,7 +40,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up build metadata
+      - name: Set up build metadata (base)
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -48,11 +48,43 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/age
           tags: |
             type=raw,value=${{ matrix.pg_major }}-${{ matrix.age_version }}-${{ matrix.cnpg_variant }}
-            # Short tag without variant (still keep variant in main tag for clarity)
             type=raw,value=${{ matrix.pg_major }}-${{ matrix.age_version }},enable=${{ matrix.cnpg_variant == 'standard-trixie' }}
           labels: |
             org.opencontainers.image.title=Apache AGE for CNPG
             org.opencontainers.image.description=PostgreSQL ${{ matrix.pg_major }} with Apache AGE ${{ matrix.age_version }} on CloudNativePG base image (variant ${{ matrix.cnpg_variant }})
+            org.opencontainers.image.vendor=${{ github.repository_owner }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Set up build metadata (pgvector)
+        id: meta_pgvector
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/age-pgvector
+          tags: |
+            type=raw,value=${{ matrix.pg_major }}-${{ matrix.age_version }}-${{ matrix.cnpg_variant }}
+            type=raw,value=${{ matrix.pg_major }}-${{ matrix.age_version }},enable=${{ matrix.cnpg_variant == 'standard-trixie' }}
+          labels: |
+            org.opencontainers.image.title=Apache AGE + pgvector for CNPG
+            org.opencontainers.image.description=PostgreSQL ${{ matrix.pg_major }} with Apache AGE ${{ matrix.age_version }} and pgvector on CloudNativePG base image (variant ${{ matrix.cnpg_variant }})
+            org.opencontainers.image.vendor=${{ github.repository_owner }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Set up build metadata (pgvector-postgis)
+        id: meta_pgvector_postgis
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/age-pgvector-postgis
+          tags: |
+            type=raw,value=${{ matrix.pg_major }}-${{ matrix.age_version }}
+          labels: |
+            org.opencontainers.image.title=Apache AGE + pgvector + PostGIS for CNPG
+            org.opencontainers.image.description=PostgreSQL ${{ matrix.pg_major }} with Apache AGE ${{ matrix.age_version }}, pgvector, and PostGIS
             org.opencontainers.image.vendor=${{ github.repository_owner }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -65,10 +97,11 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push (base)
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
           push: true
           build-args: |
             PG_MAJOR=${{ matrix.pg_major }}
@@ -76,9 +109,40 @@ jobs:
             CNPG_VARIANT=${{ matrix.cnpg_variant }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          provenance: false # disable attestation unless needed
+          provenance: false
+
+      - name: Build and push (pgvector)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.age-pgvector
+          push: true
+          build-args: |
+            PG_MAJOR=${{ matrix.pg_major }}
+            AGE_VERSION=${{ matrix.age_version }}
+            CNPG_VARIANT=${{ matrix.cnpg_variant }}
+          tags: ${{ steps.meta_pgvector.outputs.tags }}
+          labels: ${{ steps.meta_pgvector.outputs.labels }}
+          provenance: false
+
+      - name: Build and push (pgvector-postgis)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.age-pgvector-postgis
+          push: true
+          build-args: |
+            PG_MAJOR=${{ matrix.pg_major }}
+            AGE_VERSION=${{ matrix.age_version }}
+          tags: ${{ steps.meta_pgvector_postgis.outputs.tags }}
+          labels: ${{ steps.meta_pgvector_postgis.outputs.labels }}
+          provenance: false
 
       - name: Summary
         run: |
-          echo "Published image tags:"
+          echo "Published image tags (base):"
           echo "${{ steps.meta.outputs.tags }}"
+          echo "Published image tags (pgvector):"
+          echo "${{ steps.meta_pgvector.outputs.tags }}"
+          echo "Published image tags (pgvector-postgis):"
+          echo "${{ steps.meta_pgvector_postgis.outputs.tags }}"
