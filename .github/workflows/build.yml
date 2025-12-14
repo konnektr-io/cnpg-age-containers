@@ -20,21 +20,27 @@ jobs:
           - pg_major: '16'
             age_version: '1.5.0'
             cnpg_variant: standard-bookworm
+            cnpg_postgis_variant: 3-standard-bookworm
           - pg_major: '16'
             age_version: '1.5.0'
             cnpg_variant: standard-trixie
+            cnpg_postgis_variant: 3-standard-trixie
           - pg_major: '16'
             age_version: '1.6.0'
             cnpg_variant: standard-bookworm
+            cnpg_postgis_variant: 3-standard-bookworm
           - pg_major: '16'
             age_version: '1.6.0'
             cnpg_variant: standard-trixie
+            cnpg_postgis_variant: 3-standard-trixie
           - pg_major: '17'
             age_version: '1.6.0'
             cnpg_variant: standard-bookworm
+            cnpg_postgis_variant: 3-standard-bookworm
           - pg_major: '17'
             age_version: '1.6.0'
             cnpg_variant: standard-trixie
+            cnpg_postgis_variant: 3-standard-trixie
 
     steps:
       - name: Checkout
@@ -134,6 +140,7 @@ jobs:
           build-args: |
             PG_MAJOR=${{ matrix.pg_major }}
             AGE_VERSION=${{ matrix.age_version }}
+            CNPG_POSTGIS_VARIANT=${{ matrix.cnpg_postgis_variant }}
           tags: ${{ steps.meta_pgvector_postgis.outputs.tags }}
           labels: ${{ steps.meta_pgvector_postgis.outputs.labels }}
           provenance: false
