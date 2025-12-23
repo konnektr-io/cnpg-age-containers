@@ -46,7 +46,7 @@ jobs:
             age_version: '1.6.0'
             cnpg_variant: standard-trixie
             cnpg_postgis_variant: 3-standard-trixie
-            timescale_version: 2.19.3
+            timescale_version: 2.24.0
 
     steps:
       - name: Checkout

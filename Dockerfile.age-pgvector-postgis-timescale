@@ -64,7 +64,7 @@ RUN set -xe; \
 
 # Install TimescaleDB
 ARG TIMESCALE_VERSION_ARG
-ENV TIMESCALE_VERSION=${TIMESCALE_VERSION_ARG:-2.19.3}
+ENV TIMESCALE_VERSION=${TIMESCALE_VERSION_ARG:-2.24.0}
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends curl; \
