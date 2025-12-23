@@ -69,7 +69,7 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends curl; \
     . /etc/os-release 2>/dev/null; \
-    echo "deb https://packagecloud.io/timescale/timescaledb/debian/$VERSION_CODENAME main" > /etc/apt/sources.list.d/timescaledb.list; \
+    echo "deb https://packagecloud.io/timescale/timescaledb/debian/ $VERSION_CODENAME main" > /etc/apt/sources.list.d/timescaledb.list; \
     curl -Lsf https://packagecloud.io/timescale/timescaledb/gpgkey | gpg --dearmor > /etc/apt/trusted.gpg.d/timescale.gpg; \
     apt-get update; \
     apt-get install -y --no-install-recommends "timescaledb-2-postgresql-$PG_MAJOR=${TIMESCALE_VERSION}~debian$VERSION_ID"; \
