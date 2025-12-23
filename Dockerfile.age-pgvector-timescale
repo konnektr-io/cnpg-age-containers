@@ -1,0 +1,83 @@
+# Dockerfile for Apache AGE + pgvector + TimescaleDB
+# Base: cloudnative-pg/postgresql
+
+ARG PG_MAJOR=17
+ARG AGE_VERSION=1.6.0
+ARG CNPG_VARIANT=standard-trixie
+ARG TIMESCALE_VERSION
+
+# Use the same base image for build and final to ensure GLIBC compatibility
+FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-${CNPG_VARIANT} AS build
+
+ARG PG_MAJOR
+ARG AGE_VERSION
+ARG CNPG_VARIANT
+
+USER root
+
+# Install build dependencies for AGE
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --no-install-suggests \
+    bison \
+    build-essential \
+    flex \
+    git \
+    ca-certificates \
+    postgresql-server-dev-${PG_MAJOR} \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- Install Apache AGE ---
+RUN git clone --branch release/PG$PG_MAJOR/$AGE_VERSION https://github.com/apache/age.git
+WORKDIR /age
+RUN make && make install
+
+# Final stage
+FROM ghcr.io/cloudnative-pg/postgresql:${PG_MAJOR}-${CNPG_VARIANT}
+
+ARG PG_MAJOR
+ARG AGE_VERSION
+ARG CNPG_VARIANT
+ARG TIMESCALE_VERSION
+
+USER root
+
+RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen \
+    && locale-gen \
+    && update-locale LANG=en_US.UTF-8
+
+ENV LANG=en_US.UTF-8
+ENV LC_COLLATE=en_US.UTF-8
+ENV LC_CTYPE=en_US.UTF-8
+
+# Copy AGE extension
+COPY --from=build /usr/lib/postgresql/$PG_MAJOR/lib/age.so /usr/lib/postgresql/$PG_MAJOR/lib/
+COPY --from=build /usr/share/postgresql/$PG_MAJOR/extension/age--$AGE_VERSION.sql /usr/share/postgresql/$PG_MAJOR/extension/
+COPY --from=build /usr/share/postgresql/$PG_MAJOR/extension/age.control /usr/share/postgresql/$PG_MAJOR/extension/
+
+# Install pgvector from apt
+RUN set -xe; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+    "postgresql-$PG_MAJOR-pgvector" ; \
+    rm -fr /tmp/* ; \
+    rm -rf /var/lib/apt/lists/*;
+
+# Install TimescaleDB
+ARG TIMESCALE_VERSION_ARG
+ENV TIMESCALE_VERSION=${TIMESCALE_VERSION_ARG:-2.19.3}
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends curl; \
+    . /etc/os-release 2>/dev/null; \
+    echo "deb https://packagecloud.io/timescale/timescaledb/debian/$VERSION_CODENAME main" > /etc/apt/sources.list.d/timescaledb.list; \
+    curl -Lsf https://packagecloud.io/timescale/timescaledb/gpgkey | gpg --dearmor > /etc/apt/trusted.gpg.d/timescale.gpg; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends "timescaledb-2-postgresql-$PG_MAJOR=${TIMESCALE_VERSION}~debian$VERSION_ID"; \
+    apt-get purge -y curl; \
+    rm /etc/apt/sources.list.d/timescaledb.list /etc/apt/trusted.gpg.d/timescale.gpg; \
+    rm -rf /var/cache/apt/*;
+
+# Create the plugins directory and a symlink to allow non-superusers to load the Apache AGE library
+RUN mkdir -p /usr/lib/postgresql/$PG_MAJOR/lib/plugins && ln -s /usr/lib/postgresql/$PG_MAJOR/lib/age.so /usr/lib/postgresql/$PG_MAJOR/lib/plugins/age.so
+
+USER 26
