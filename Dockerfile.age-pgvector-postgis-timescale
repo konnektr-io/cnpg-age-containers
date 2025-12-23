@@ -66,16 +66,20 @@ RUN set -xe; \
 ARG TIMESCALE_VERSION_ARG
 ENV TIMESCALE_VERSION=${TIMESCALE_VERSION_ARG:-2.24.0}
 RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends curl; \
-    . /etc/os-release 2>/dev/null; \
-    echo "deb https://packagecloud.io/timescale/timescaledb/debian/ $VERSION_CODENAME main" > /etc/apt/sources.list.d/timescaledb.list; \
-    curl -Lsf https://packagecloud.io/timescale/timescaledb/gpgkey | gpg --dearmor > /etc/apt/trusted.gpg.d/timescale.gpg; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends "timescaledb-2-postgresql-$PG_MAJOR=${TIMESCALE_VERSION}~debian$VERSION_ID"; \
-    apt-get purge -y curl; \
-    rm /etc/apt/sources.list.d/timescaledb.list /etc/apt/trusted.gpg.d/timescale.gpg; \
-    rm -rf /var/cache/apt/*;
+        apt-get update; \
+        apt-get install -y --no-install-recommends curl; \
+        . /etc/os-release 2>/dev/null; \
+        echo "deb https://packagecloud.io/timescale/timescaledb/debian/ $VERSION_CODENAME main" > /etc/apt/sources.list.d/timescaledb.list; \
+        curl -Lsf https://packagecloud.io/timescale/timescaledb/gpgkey | gpg --dearmor > /etc/apt/trusted.gpg.d/timescale.gpg; \
+        apt-get update; \
+        if [ "$VERSION_CODENAME" = "trixie" ]; then \
+            apt-get install -y --no-install-recommends timescaledb-2-oss-postgresql-$PG_MAJOR; \
+        else \
+            apt-get install -y --no-install-recommends "timescaledb-2-postgresql-$PG_MAJOR=${TIMESCALE_VERSION}~debian$VERSION_ID"; \
+        fi; \
+        apt-get purge -y curl; \
+        rm /etc/apt/sources.list.d/timescaledb.list /etc/apt/trusted.gpg.d/timescale.gpg; \
+        rm -rf /var/cache/apt/*;
 
 # Create the plugins directory and a symlink to allow non-superusers to load the Apache AGE library
 RUN mkdir -p /usr/lib/postgresql/$PG_MAJOR/lib/plugins && ln -s /usr/lib/postgresql/$PG_MAJOR/lib/age.so /usr/lib/postgresql/$PG_MAJOR/lib/plugins/age.so
