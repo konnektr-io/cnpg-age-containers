@@ -32,6 +32,7 @@ Current build matrix (see workflow in `.github/workflows/build.yml`):
 |------------|----------------------|-----------------|
 | 16         | 1.5.0, 1.6.0         | standard-trixie |
 | 17         | 1.6.0                | standard-trixie |
+| 18         | 1.7.0                | standard-trixie |
 
 Tag format:
 
