@@ -21,8 +21,8 @@ Each image includes:
 * CloudNativePG upstream base image (variant: `standard-trixie`)
 * Compiled Apache AGE extension (version per tag)
 * pgvector (from upstream base, available for convenience)
-
-Nothing else is bundled intentionally—focus is on Apache AGE.
+* PostGIS (optional)
+* TimescaleDB (optional)
 
 ## Image tags
 
