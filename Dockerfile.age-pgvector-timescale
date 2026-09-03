@@ -84,4 +84,11 @@ RUN set -eux; \
 # Create the plugins directory and a symlink to allow non-superusers to load the Apache AGE library
 RUN mkdir -p /usr/lib/postgresql/$PG_MAJOR/lib/plugins && ln -s /usr/lib/postgresql/$PG_MAJOR/lib/age.so /usr/lib/postgresql/$PG_MAJOR/lib/plugins/age.so
 
+# Pull in the latest Debian trixie security updates at build time so the image
+# does not carry known base-OS CVEs (openssl, glibc, systemd, ...) between
+# upstream CloudNativePG base rebuilds.
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 USER 26
