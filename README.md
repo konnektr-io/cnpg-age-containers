@@ -10,12 +10,12 @@ SQL in Kubernetes clusters managed by CloudNativePG.
 
 Five image variants are published for each matrix entry:
 
-| Image                        | File                            | Extensions included                                     |
-| ---------------------------- | ------------------------------- | ------------------------------------------------------- |
-| `age`                        | `Dockerfile`                    | AGE only                                                |
-| `age-pgvector`               | `Dockerfile.age-pgvector`       | AGE, pgvector                                           |
-| `age-pgvector-postgis`       | `Dockerfile.age-pgvector-postgis` | AGE, pgvector, PostGIS                                |
-| `age-pgvector-timescale`     | `Dockerfile.age-pgvector-timescale` | AGE, pgvector, TimescaleDB (when `timescale_version` set) |
+| Image                            | File                                        | Extensions included                                                |
+| -------------------------------- | ------------------------------------------- | ------------------------------------------------------------------ |
+| `age`                            | `Dockerfile`                                | AGE only                                                           |
+| `age-pgvector`                   | `Dockerfile.age-pgvector`                   | AGE, pgvector                                                      |
+| `age-pgvector-postgis`           | `Dockerfile.age-pgvector-postgis`           | AGE, pgvector, PostGIS                                             |
+| `age-pgvector-timescale`         | `Dockerfile.age-pgvector-timescale`         | AGE, pgvector, TimescaleDB (when `timescale_version` set)          |
 | `age-pgvector-postgis-timescale` | `Dockerfile.age-pgvector-postgis-timescale` | AGE, pgvector, PostGIS, TimescaleDB (when `timescale_version` set) |
 
 ## Image tags
@@ -24,14 +24,15 @@ Current build matrix (see workflow in `.github/workflows/build.yml`):
 
 ### `age` and `age-pgvector`
 
-| PostgreSQL | AGE version(s) | Variants                                                              |
-| ---------- | -------------- | --------------------------------------------------------------------- |
-| 16         | 1.5.0, 1.6.0   | `standard-bookworm`, `standard-trixie`                                |
-| 17         | 1.6.0          | `standard-bookworm`, `standard-trixie`                                |
-| 18         | 1.7.0          | `standard-trixie`                                                     |
-| 18         | 1.8.0          | `standard-trixie`                                                     |
+| PostgreSQL | AGE version(s) | Variants                               |
+| ---------- | -------------- | -------------------------------------- |
+| 16         | 1.5.0, 1.6.0   | `standard-bookworm`, `standard-trixie` |
+| 17         | 1.6.0          | `standard-bookworm`, `standard-trixie` |
+| 18         | 1.7.0          | `standard-trixie`                      |
+| 18         | 1.8.0          | `standard-trixie`                      |
 
 Each row publishes two tag forms:
+
 - `ghcr.io/<owner>/age:<pg_major>-<age_version>-<variant>` — fully qualified
 - `ghcr.io/<owner>/age:<pg_major>-<age_version>` — short tag (only for `standard-trixie`)
 
@@ -75,9 +76,9 @@ ghcr.io/konnektr-io/age-pgvector-postgis:18-1.8.0
 
 ### `age-pgvector-timescale` (TimescaleDB)
 
-| PostgreSQL | AGE version | Variant         | TimescaleDB |
-| ---------- | ----------- | --------------- | ----------- |
-| 17         | 1.6.0       | `standard-trixie` | 2.24.0     |
+| PostgreSQL | AGE version | Variant           | TimescaleDB |
+| ---------- | ----------- | ----------------- | ----------- |
+| 17         | 1.6.0       | `standard-trixie` | 2.24.0      |
 
 Tags: `ghcr.io/<owner>/age-pgvector-timescale:<pg_major>-<age_version>-<variant>`
 
