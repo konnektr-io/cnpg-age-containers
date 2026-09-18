@@ -1,56 +1,105 @@
-# Apache Age Container Images for CloudNativePG
+# Apache AGE Container Images for CloudNativePG (CNPG)
 
-These images are built on top of the [Official Postgres image](https://hub.docker.com/_/postgres)
-maintained by the [PostgreSQL Docker Community](https://github.com/docker-library/postgres),
-by adding the following software:
+Lightweight container images that add the **Apache AGE** graph extension onto
+[CloudNativePG](https://cloudnative-pg.io/) base PostgreSQL images.
 
-- Barman Cloud
-- PGAudit
-- Postgres Failover Slots
-# Apache AGE images for CloudNativePG
+Use them to run property graph workloads side-by-side with standard relational
+SQL in Kubernetes clusters managed by CloudNativePG.
 
-Lightweight container images that add the **Apache AGE** graph extension to the
-CloudNativePG base PostgreSQL images. Use them to run property graph workloads
-side-by-side with standard relational SQL in Kubernetes clusters managed by
-[CloudNativePG](https://cloudnative-pg.io/).
+## Image variants
 
-## Contents
+Five image variants are published for each matrix entry:
 
-Each image includes:
-
-* CloudNativePG upstream base image (variant: `standard-trixie`)
-* Compiled Apache AGE extension (version per tag)
-* pgvector (from upstream base, available for convenience)
-* PostGIS (optional)
-* TimescaleDB (optional)
+| Image                        | File                            | Extensions included                                     |
+| ---------------------------- | ------------------------------- | ------------------------------------------------------- |
+| `age`                        | `Dockerfile`                    | AGE only                                                |
+| `age-pgvector`               | `Dockerfile.age-pgvector`       | AGE, pgvector                                           |
+| `age-pgvector-postgis`       | `Dockerfile.age-pgvector-postgis` | AGE, pgvector, PostGIS                                |
+| `age-pgvector-timescale`     | `Dockerfile.age-pgvector-timescale` | AGE, pgvector, TimescaleDB (when `timescale_version` set) |
+| `age-pgvector-postgis-timescale` | `Dockerfile.age-pgvector-postgis-timescale` | AGE, pgvector, PostGIS, TimescaleDB (when `timescale_version` set) |
 
 ## Image tags
 
 Current build matrix (see workflow in `.github/workflows/build.yml`):
 
-| PostgreSQL | AGE version(s)       | Variant         |
-|------------|----------------------|-----------------|
-| 16         | 1.5.0, 1.6.0         | standard-trixie |
-| 17         | 1.6.0                | standard-trixie |
-| 18         | 1.7.0                | standard-trixie |
+### `age` and `age-pgvector`
 
-Tag format:
+| PostgreSQL | AGE version(s) | Variants                                                              |
+| ---------- | -------------- | --------------------------------------------------------------------- |
+| 16         | 1.5.0, 1.6.0   | `standard-bookworm`, `standard-trixie`                                |
+| 17         | 1.6.0          | `standard-bookworm`, `standard-trixie`                                |
+| 18         | 1.7.0          | `standard-trixie`                                                     |
+| 18         | 1.8.0          | `standard-trixie`                                                     |
+
+Each row publishes two tag forms:
+- `ghcr.io/<owner>/age:<pg_major>-<age_version>-<variant>` — fully qualified
+- `ghcr.io/<owner>/age:<pg_major>-<age_version>` — short tag (only for `standard-trixie`)
+
+Example for **age** (same pattern for **age-pgvector**):
 
 ```
-ghcr.io/<owner>/age:<pg_major>-<age_version>-<variant>
-```
-
-Examples:
-
-```
+ghcr.io/konnektr-io/age:16-1.5.0-standard-bookworm
 ghcr.io/konnektr-io/age:16-1.5.0-standard-trixie
+ghcr.io/konnektr-io/age:16-1.5.0         (short, standard-trixie only)
+ghcr.io/konnektr-io/age:16-1.6.0-standard-bookworm
 ghcr.io/konnektr-io/age:16-1.6.0-standard-trixie
+ghcr.io/konnektr-io/age:16-1.6.0         (short)
+ghcr.io/konnektr-io/age:17-1.6.0-standard-bookworm
 ghcr.io/konnektr-io/age:17-1.6.0-standard-trixie
+ghcr.io/konnektr-io/age:17-1.6.0         (short)
+ghcr.io/konnektr-io/age:18-1.7.0-standard-trixie
+ghcr.io/konnektr-io/age:18-1.7.0         (short)
+ghcr.io/konnektr-io/age:18-1.8.0-standard-trixie
+ghcr.io/konnektr-io/age:18-1.8.0         (short)
 ```
 
-Short tags without the variant (e.g. `16-1.6.0`) may also exist for the default
-variant; prefer the fully qualified form to avoid ambiguity in the future if
-more variants are added.
+### `age-pgvector-postgis`
+
+| PostgreSQL | AGE version(s) |
+| ---------- | -------------- |
+| 16         | 1.5.0          |
+| 16         | 1.6.0          |
+| 17         | 1.6.0          |
+| 18         | 1.7.0          |
+| 18         | 1.8.0          |
+
+Tags: `ghcr.io/<owner>/age-pgvector-postgis:<pg_major>-<age_version>`
+
+```
+ghcr.io/konnektr-io/age-pgvector-postgis:16-1.5.0
+ghcr.io/konnektr-io/age-pgvector-postgis:16-1.6.0
+ghcr.io/konnektr-io/age-pgvector-postgis:17-1.6.0
+ghcr.io/konnektr-io/age-pgvector-postgis:18-1.7.0
+ghcr.io/konnektr-io/age-pgvector-postgis:18-1.8.0
+```
+
+### `age-pgvector-timescale` (TimescaleDB)
+
+| PostgreSQL | AGE version | Variant         | TimescaleDB |
+| ---------- | ----------- | --------------- | ----------- |
+| 17         | 1.6.0       | `standard-trixie` | 2.24.0     |
+
+Tags: `ghcr.io/<owner>/age-pgvector-timescale:<pg_major>-<age_version>-<variant>`
+
+```
+ghcr.io/konnektr-io/age-pgvector-timescale:17-1.6.0-standard-trixie
+```
+
+### `age-pgvector-postgis-timescale` (PostGIS + TimescaleDB)
+
+| PostgreSQL | AGE version | TimescaleDB |
+| ---------- | ----------- | ----------- |
+| 17         | 1.6.0       | 2.24.0      |
+| 18         | 1.7.0       | 2.25.1      |
+| 18         | 1.8.0       | 2.30.1      |
+
+Tags: `ghcr.io/<owner>/age-pgvector-postgis-timescale:<pg_major>-<age_version>`
+
+```
+ghcr.io/konnektr-io/age-pgvector-postgis-timescale:17-1.6.0
+ghcr.io/konnektr-io/age-pgvector-postgis-timescale:18-1.7.0
+ghcr.io/konnektr-io/age-pgvector-postgis-timescale:18-1.8.0
+```
 
 ## Using with CloudNativePG
 
@@ -94,6 +143,8 @@ spec:
       image: ghcr.io/konnektr-io/age:16-1.6.0-standard-trixie
     - major: 17
       image: ghcr.io/konnektr-io/age:17-1.6.0-standard-trixie
+    - major: 18
+      image: ghcr.io/konnektr-io/age:18-1.8.0-standard-trixie
 ```
 
 Then in your `Cluster` use:
@@ -103,7 +154,7 @@ imageCatalogRef:
   apiGroup: postgresql.cnpg.io
   kind: ClusterImageCatalog
   name: age
-  major: 16
+  major: 18
 ```
 
 ## Quick AGE usage
@@ -122,11 +173,42 @@ kubectl exec -ti age-demo-1 -- psql app -c "SELECT * FROM cypher('g', $$ MATCH (
 You can reproduce the build for a given combination:
 
 ```bash
+# Base AGE image
 docker build \
   --build-arg PG_MAJOR=16 \
   --build-arg AGE_VERSION=1.6.0 \
   --build-arg CNPG_VARIANT=standard-trixie \
   -t age:16-1.6.0-standard-trixie .
+
+# AGE + pgvector
+docker build -f Dockerfile.age-pgvector \
+  --build-arg PG_MAJOR=16 \
+  --build-arg AGE_VERSION=1.6.0 \
+  --build-arg CNPG_VARIANT=standard-trixie \
+  -t age-pgvector:16-1.6.0-standard-trixie .
+
+# AGE + pgvector + PostGIS
+docker build -f Dockerfile.age-pgvector-postgis \
+  --build-arg PG_MAJOR=16 \
+  --build-arg AGE_VERSION=1.6.0 \
+  --build-arg CNPG_POSTGIS_VARIANT=3-standard-trixie \
+  -t age-pgvector-postgis:16-1.6.0 .
+
+# AGE + pgvector + TimescaleDB
+docker build -f Dockerfile.age-pgvector-timescale \
+  --build-arg PG_MAJOR=17 \
+  --build-arg AGE_VERSION=1.6.0 \
+  --build-arg CNPG_VARIANT=standard-trixie \
+  --build-arg TIMESCALE_VERSION_ARG=2.24.0 \
+  -t age-pgvector-timescale:17-1.6.0-standard-trixie .
+
+# AGE + pgvector + PostGIS + TimescaleDB
+docker build -f Dockerfile.age-pgvector-postgis-timescale \
+  --build-arg PG_MAJOR=18 \
+  --build-arg AGE_VERSION=1.8.0 \
+  --build-arg CNPG_POSTGIS_VARIANT=3-standard-trixie \
+  --build-arg TIMESCALE_VERSION_ARG=2.30.1 \
+  -t age-pgvector-postgis-timescale:18-1.8.0 .
 ```
 
 ## CI / Publishing
