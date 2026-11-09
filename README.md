@@ -12,11 +12,70 @@ Five image variants are published for each matrix entry:
 
 | Image                            | File                                        | Extensions included                                                |
 | -------------------------------- | ------------------------------------------- | ------------------------------------------------------------------ |
-| `age`                            | `Dockerfile`                                | AGE only                                                           |
-| `age-pgvector`                   | `Dockerfile.age-pgvector`                   | AGE, pgvector                                                      |
+| `age`                            | `Dockerfile`                                | AGE, pgvector (pgvector inherited from the base image)             |
+| `age-pgvector`                   | `Dockerfile.age-pgvector`                   | AGE, pgvector (pgvector inherited from the base image)             |
 | `age-pgvector-postgis`           | `Dockerfile.age-pgvector-postgis`           | AGE, pgvector, PostGIS                                             |
 | `age-pgvector-timescale`         | `Dockerfile.age-pgvector-timescale`         | AGE, pgvector, TimescaleDB (when `timescale_version` set)          |
 | `age-pgvector-postgis-timescale` | `Dockerfile.age-pgvector-postgis-timescale` | AGE, pgvector, PostGIS, TimescaleDB (when `timescale_version` set) |
+
+### Where pgvector comes from
+
+The CloudNativePG base images already ship pgvector — `postgresql:<pg>-standard-<os>`
+and `postgis:<pg>-<postgis>-standard-<os>` both provide it (0.8.7 at the time of
+writing). None of the Dockerfiles install it from apt any more: that step pulled an
+older package *over* the base (`postgresql-<pg>-pgvector` 0.8.6), silently
+downgrading the extension. pgvector's version is now owned by the base image, so a
+rebuild tracks whatever CloudNativePG ships.
+
+Consequently **`age` and `age-pgvector` contain the same extensions**; `age` is
+kept published for backwards compatibility so existing pins keep resolving. Prefer
+`age-pgvector*` in new deployments — the name states the requirement.
+
+If you build with a base variant that does *not* carry pgvector (e.g. setting
+`CNPG_VARIANT=minimal-trixie`), pgvector will be missing from the resulting image;
+only the `standard-*` variants in the build matrix below are covered.
+
+### Upgrading an existing database
+
+Rebuilding these images changes the pgvector release inside them: the current
+base image provides **0.8.7**, while the images published before the apt step was
+removed carried **0.8.6**. The library travels with the image, but a database's
+*extension* version is fixed when the extension is created, so an existing
+database keeps the version it was instantiated with — even after its pods have
+been rolled onto the rebuilt image.
+
+After a cluster runs on a rebuilt image, check the application database:
+
+```sql
+SELECT extversion FROM pg_extension WHERE extname = 'vector';               -- installed
+SELECT default_version FROM pg_available_extensions WHERE name = 'vector';  -- shipped by the image
+```
+
+If they differ, upgrade the extension in place:
+
+```sql
+ALTER EXTENSION vector UPDATE;
+```
+
+Verified on a database created by `age-pgvector:18-1.7.0-standard-trixie`
+(pgvector 0.8.6) and then served by `postgresql:18-standard-trixie` (0.8.7):
+
+- before the update the check reported `installed = 0.8.6`, `image ships = 0.8.7`;
+  queries and an existing HNSW index kept working (the newer library is backward
+  compatible with the older SQL objects);
+- `ALTER EXTENSION vector UPDATE` moved it to 0.8.7 — same query results, same
+  index plan, index still valid (`indisvalid = 1`), no table or index rebuild;
+- running it again is a no-op (`NOTICE: version "0.8.7" of extension "vector" is
+  already installed`), so it is safe to script.
+
+New clusters need nothing: `CREATE EXTENSION vector` in the bootstrap SQL creates
+the version the image ships.
+
+Run the update per database that has pgvector (for the Konnektr Graph: the
+application database), as the owner of the extension — the bootstrap superuser
+(`postgres`), not the application user.
+
+
 
 ## Image tags
 
