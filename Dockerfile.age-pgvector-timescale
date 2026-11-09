@@ -54,13 +54,10 @@ COPY --from=build /usr/lib/postgresql/$PG_MAJOR/lib/age.so /usr/lib/postgresql/$
 COPY --from=build /usr/share/postgresql/$PG_MAJOR/extension/age--$AGE_VERSION.sql /usr/share/postgresql/$PG_MAJOR/extension/
 COPY --from=build /usr/share/postgresql/$PG_MAJOR/extension/age.control /usr/share/postgresql/$PG_MAJOR/extension/
 
-# Install pgvector from apt
-RUN set -xe; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends \
-    "postgresql-$PG_MAJOR-pgvector" ; \
-    rm -fr /tmp/* ; \
-    rm -rf /var/lib/apt/lists/*;
+# pgvector is NOT installed here on purpose: the CloudNativePG base image
+# already ships it (the `standard` variant provides it), and the apt step this
+# replaced pinned an older release than the base — silently downgrading it.
+# Keep pgvector's version owned by the base image, not by this file.
 
 # Install TimescaleDB
 ARG TIMESCALE_VERSION_ARG
