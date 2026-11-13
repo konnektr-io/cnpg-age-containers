@@ -22,10 +22,18 @@ Five image variants are published for each matrix entry:
 
 The CloudNativePG base images already ship pgvector — `postgresql:<pg>-standard-<os>`
 and `postgis:<pg>-<postgis>-standard-<os>` both provide it (0.8.7 at the time of
-writing). None of the Dockerfiles install it from apt any more: that step pulled an
-older package *over* the base (`postgresql-<pg>-pgvector` 0.8.6), silently
-downgrading the extension. pgvector's version is now owned by the base image, so a
-rebuild tracks whatever CloudNativePG ships.
+writing). The Dockerfiles no longer install it: `apt-get install
+postgresql-<pg>-pgvector` on such a base resolves to the package the base already
+carries (CloudNativePG builds those images from the same PGDG repository), so the
+step was a no-op that only gave the version a second, build-time source of truth.
+It also made the images look *older* than a freshly rebuilt base: the published
+`*-1.7.0-*` images carry `vector` 0.8.6 because that is what the base shipped when
+they were built, not because anything downgraded them. pgvector's version is now
+owned by the base image, so a rebuild tracks whatever CloudNativePG ships.
+
+Each `age-pgvector*` Dockerfile asserts the base still ships the extension
+(`test -f .../extension/vector.control`), so an upstream base-image change fails the
+build instead of publishing an image whose name promises pgvector it does not have.
 
 Consequently **`age` and `age-pgvector` contain the same extensions**; `age` is
 kept published for backwards compatibility so existing pins keep resolving. Prefer
